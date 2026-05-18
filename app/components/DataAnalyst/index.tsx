@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import * as XLSX from "xlsx";
 
 interface Message {
   role: "user" | "assistant";
