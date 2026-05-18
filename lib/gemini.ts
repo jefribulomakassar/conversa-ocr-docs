@@ -68,27 +68,23 @@ async function extractSingle(doc: DocumentInput): Promise<ExtractedDocument> {
   const model = getModel();
   const filePart = fileToGenerativePart(doc.buffer, doc.mimeType);
 
-  const prompt = `
-You are an enterprise document intelligence agent.
-Analyze this document ("${doc.fileName}") and return structured JSON:
-{
-  "summary": "brief summary",
-  "document_type": "invoice | contract | report | form | other",
-  "key_fields": { "field_name": "value" },
-  "tables": [ { "title": "", "headers": [], "rows": [[]] } ],
-  "full_text": "complete extracted text"
-}
-Be precise. Do not hallucinate. Return only valid JSON, no markdown fences.
-  `.trim();
+  const prompt = `...`.trim();
 
   let result;
-  try {
-    result = await model.generateContent([prompt, filePart]);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[extractSingle] Gemini error for "${doc.fileName}":`, msg);
-    throw new Error(`Gemini API error: ${msg}`);
+  let lastErr: Error | null = null;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      result = await model.generateContent([prompt, filePart]);
+      break; // sukses, keluar loop
+    } catch (err) {
+      lastErr = err instanceof Error ? err : new Error(String(err));
+      console.error(`[extractSingle] Attempt ${attempt} failed for "${doc.fileName}":`, lastErr.message);
+      if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 2000)); // 2s, 4s
+    }
   }
+
+  if (!result) throw lastErr ?? new Error("All retry attempts failed.");
 
   const text = result.response.text().replace(/```json|```/g, "").trim();
 
