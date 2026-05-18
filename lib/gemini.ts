@@ -4,21 +4,6 @@ import {
   Part,
 } from "@google/generative-ai";
 
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error("Missing GEMINI_API_KEY in environment variables.");
-}
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// Primary model: Gemini Flash for OCR & document processing
-export const geminiFlash: GenerativeModel = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash",
-  generationConfig: {
-    temperature: 0.2,
-    maxOutputTokens: 8192,
-  },
-});
-
 // Max files allowed per batch
 export const MAX_BATCH_FILES = 10;
 
@@ -56,6 +41,22 @@ export interface BatchExtractionResult {
   failed: Array<{ fileName: string; error: string }>;
 }
 
+// Lazy-init model — only called at runtime, never at build time
+function getModel(): GenerativeModel {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing GEMINI_API_KEY in environment variables.");
+  }
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 8192,
+    },
+  });
+}
+
 // Helper: convert file buffer to Gemini-compatible Part
 export function fileToGenerativePart(buffer: Buffer, mimeType: string): Part {
   return {
@@ -68,6 +69,7 @@ export function fileToGenerativePart(buffer: Buffer, mimeType: string): Part {
 
 // Extract a single document — internal use
 async function extractSingle(doc: DocumentInput): Promise<ExtractedDocument> {
+  const model = getModel();
   const filePart = fileToGenerativePart(doc.buffer, doc.mimeType);
 
   const prompt = `
@@ -83,7 +85,7 @@ Analyze this document ("${doc.fileName}") and return structured JSON:
 Be precise. Do not hallucinate. Return only valid JSON, no markdown fences.
   `.trim();
 
-  const result = await geminiFlash.generateContent([prompt, filePart]);
+  const result = await model.generateContent([prompt, filePart]);
   const text = result.response.text().replace(/```json|```/g, "").trim();
   const parsed = JSON.parse(text);
 
@@ -122,6 +124,8 @@ export async function chatWithDocuments(
   documents: ExtractedDocument[],
   question: string
 ): Promise<string> {
+  const model = getModel();
+
   const context = documents
     .map(
       (doc, i) =>
@@ -142,6 +146,6 @@ If the answer spans multiple documents, reference each by filename.
 Be concise, accurate, and cite relevant parts when useful.
   `.trim();
 
-  const result = await geminiFlash.generateContent(prompt);
+  const result = await model.generateContent(prompt);
   return result.response.text();
 }
