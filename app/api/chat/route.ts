@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { chatWithDocuments, ExtractedDocument } from "@/lib/gemini";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 10;
 
 export async function POST(req: NextRequest) {
   try {
