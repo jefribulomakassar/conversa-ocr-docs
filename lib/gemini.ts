@@ -120,7 +120,7 @@ export async function extractBatch(
     } else {
       failed.push({
         fileName: docs[i].fileName,
-        error: result.reason?.message ?? "Unknown error",
+        error: result.reason?.message ?? String(result.reason) ?? "Unknown error",
       });
     }
   });
