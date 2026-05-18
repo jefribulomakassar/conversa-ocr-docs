@@ -11,6 +11,18 @@ interface Props {
   onError: (msg: string) => void;
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(",")[1]); // strip data:mime;base64,
+    };
+    reader.onerror = () => reject(new Error("Failed to read file."));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function DocumentUpload({ onExtracted, onError }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
@@ -29,12 +41,18 @@ export default function DocumentUpload({ onExtracted, onError }: Props) {
     setLoading(true);
 
     try {
-      const formData = new FormData();
-      arr.forEach((f) => formData.append("files", f));
+      const payload = await Promise.all(
+        arr.map(async (file) => ({
+          fileName: file.name,
+          mimeType: file.type,
+          base64: await fileToBase64(file),
+        }))
+      );
 
       const res = await fetch("/api/extract", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: payload }),
       });
 
       const data = await res.json();
