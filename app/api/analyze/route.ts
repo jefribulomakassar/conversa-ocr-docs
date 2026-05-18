@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
-import { analyzeData } from "@/lib/gemini"; // sesuaikan nama fungsinya
-import { History } from "@/types"; // sesuaikan import
+import { analyzeData } from "@/lib/analyst";
 
 export const runtime = "nodejs";
-export const maxDuration = 10;
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,15 +28,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const answer = await analyzeData(csvContent, fileName, question, history);
+    const answer = await analyzeData({ csvContent, fileName, question, history });
 
-    // ✅ Stream teks per kata
     const stream = new ReadableStream({
       start(controller) {
         const encoder = new TextEncoder();
         const words = answer.split(" ");
         let i = 0;
-
         const pushNext = () => {
           if (i >= words.length) {
             controller.close();
@@ -48,7 +45,6 @@ export async function POST(req: NextRequest) {
           i++;
           setTimeout(pushNext, 18);
         };
-
         pushNext();
       },
     });
