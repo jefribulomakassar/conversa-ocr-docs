@@ -183,6 +183,7 @@ async function renderPdfPages(pdfBuffer: Buffer): Promise<Buffer[]> {
         await page.render({
           canvasContext: context as unknown as CanvasRenderingContext2D,
           viewport,
+          canvas: canvas as unknown as HTMLCanvasElement,
         }).promise;
 
         return canvas.toBuffer("image/png");
