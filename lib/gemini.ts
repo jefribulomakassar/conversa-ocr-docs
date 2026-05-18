@@ -85,7 +85,9 @@ Be precise. Do not hallucinate. Return only valid JSON, no markdown fences.
   try {
     result = await model.generateContent([prompt, filePart]);
   } catch (err) {
-    throw new Error(`Gemini API error: ${err instanceof Error ? err.message : String(err)}`);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[extractSingle] Gemini error for "${doc.fileName}":`, msg);
+    throw new Error(`Gemini API error: ${msg}`);
   }
 
   const text = result.response.text().replace(/```json|```/g, "").trim();
