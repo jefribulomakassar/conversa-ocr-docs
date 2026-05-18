@@ -30,6 +30,9 @@ export default function ChatInterface({ documents }: Props) {
     setInput("");
     setLoading(true);
 
+    // Add empty assistant bubble immediately
+    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -37,15 +40,38 @@ export default function ChatInterface({ documents }: Props) {
         body: JSON.stringify({ documents, question }),
       });
 
-      const data = await res.json();
-      const answer = res.ok ? data.answer : data.error ?? "Something went wrong.";
+      if (!res.ok || !res.body) {
+        const data = await res.json();
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1].content = data.error ?? "Something went wrong.";
+          return updated;
+        });
+        return;
+      }
 
-      setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            ...updated[updated.length - 1],
+            content: updated[updated.length - 1].content + chunk,
+          };
+          return updated;
+        });
+      }
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Network error. Please try again." },
-      ]);
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1].content = "Network error. Please try again.";
+        return updated;
+      });
     } finally {
       setLoading(false);
     }
@@ -91,21 +117,13 @@ export default function ChatInterface({ documents }: Props) {
               }`}
             >
               {msg.content}
+              {/* blinking cursor on the last assistant bubble while streaming */}
+              {loading && i === messages.length - 1 && msg.role === "assistant" && (
+                <span className="inline-block w-[2px] h-[1em] bg-gray-500 ml-0.5 align-middle animate-pulse" />
+              )}
             </div>
           </div>
         ))}
-
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-2">
-              <span className="flex gap-1 items-center">
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
-              </span>
-            </div>
-          </div>
-        )}
 
         <div ref={bottomRef} />
       </div>
