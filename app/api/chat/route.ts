@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { chatWithDocuments, ExtractedDocument } from "@/lib/gemini";
+import { NextRequest } from "next/server";
+import { chatWithDocumentsStream, ExtractedDocument } from "@/lib/gemini";
 
 export const runtime = "nodejs";
-export const maxDuration = 10;
+export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,18 +13,29 @@ export async function POST(req: NextRequest) {
     };
 
     if (!documents || documents.length === 0) {
-      return NextResponse.json({ error: "No documents provided." }, { status: 400 });
+      return new Response(JSON.stringify({ error: "No documents provided." }), { status: 400 });
     }
-
     if (!question || question.trim() === "") {
-      return NextResponse.json({ error: "Question is required." }, { status: 400 });
+      return new Response(JSON.stringify({ error: "Question is required." }), { status: 400 });
     }
 
-    const answer = await chatWithDocuments(documents, question);
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of chatWithDocumentsStream(documents, question)) {
+            controller.enqueue(new TextEncoder().encode(chunk));
+          }
+        } finally {
+          controller.close();
+        }
+      },
+    });
 
-    return NextResponse.json({ answer }, { status: 200 });
+    return new Response(stream, {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal server error.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return new Response(JSON.stringify({ error: message }), { status: 500 });
   }
 }
