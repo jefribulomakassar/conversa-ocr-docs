@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -100,33 +99,65 @@ export default function DataAnalyst() {
   const send = async () => {
     const question = input.trim();
     if (!question || !csvContent || loading) return;
-
-    const newMessage: Message = { role: "user", content: question };
-    setMessages((prev) => [...prev, newMessage]);
+  
+    setMessages((prev) => [...prev, { role: "user", content: question }]);
     setInput("");
     setLoading(true);
-
+  
+    // Tambah bubble assistant kosong langsung
+    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+  
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ csvContent, fileName, question, history }),
       });
-
-      const data = await res.json();
-      const answer = res.ok ? data.answer : data.error ?? "Something went wrong.";
-
-      setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
+  
+      if (!res.ok || !res.body) {
+        const data = await res.json();
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1].content = data.error ?? "Something went wrong.";
+          return updated;
+        });
+        setLoading(false);
+        return;
+      }
+  
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullAnswer = "";
+  
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        fullAnswer += chunk;
+  
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            ...updated[updated.length - 1],
+            content: fullAnswer,
+          };
+          return updated;
+        });
+      }
+  
+      // Simpan ke history setelah stream selesai
       setHistory((prev) => [
         ...prev,
         { role: "user", text: question },
-        { role: "model", text: answer },
+        { role: "model", text: fullAnswer },
       ]);
+  
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Network error. Please try again." },
-      ]);
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1].content = "Network error. Please try again.";
+        return updated;
+      });
     } finally {
       setLoading(false);
     }
@@ -252,6 +283,7 @@ export default function DataAnalyst() {
                 Ask anything about your data — trends, totals, anomalies, summaries.
               </p>
             )}
+          
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
@@ -262,10 +294,16 @@ export default function DataAnalyst() {
                   }`}
                 >
                   {msg.content}
+                  {/* Blinking cursor hanya di bubble assistant terakhir saat streaming */}
+                  {loading && i === messages.length - 1 && msg.role === "assistant" && (
+                    <span className="inline-block w-[2px] h-[1em] bg-gray-500 ml-0.5 align-middle animate-pulse" />
+                  )}
                 </div>
               </div>
             ))}
-            {loading && (
+          
+            {/* Dots loader hanya muncul saat loading tapi bubble assistant belum ada isinya */}
+            {loading && messages[messages.length - 1]?.role !== "assistant" && (
               <div className="flex justify-start">
                 <div className="bg-gray-100 rounded-2xl rounded-bl-sm px-4 py-2">
                   <span className="flex gap-1 items-center">
@@ -276,6 +314,7 @@ export default function DataAnalyst() {
                 </div>
               </div>
             )}
+          
             <div ref={bottomRef} />
           </div>
 
