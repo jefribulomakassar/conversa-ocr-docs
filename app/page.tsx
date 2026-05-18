@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import DocumentUpload from "@/app/components/DocumentUpload";
 import ChatInterface from "@/app/components/ChatInterface";
 import { ExtractedDocument } from "@/lib/gemini";
@@ -29,6 +30,19 @@ export default function Home() {
         <p className="text-sm text-gray-500 mt-1">
           Enterprise Document Intelligence — powered by Gemini Flash
         </p>
+
+        {/* Navigation */}
+        <div className="flex justify-center gap-3 mt-4">
+          <span className="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-full font-medium">
+            📄 OCR Docs
+          </span>
+          <Link
+            href="/data-intelligence"
+            className="text-xs px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-full font-medium hover:border-emerald-400 hover:text-emerald-600 transition"
+          >
+            📊 Data Intelligence
+          </Link>
+        </div>
       </div>
 
       <div className="w-full max-w-3xl flex flex-col gap-6">
@@ -48,9 +62,7 @@ export default function Home() {
               </button>
             )}
           </div>
-
           <DocumentUpload onExtracted={handleExtracted} onError={setError} />
-
           {error && (
             <p className="mt-3 text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">
               {error}
