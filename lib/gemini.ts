@@ -68,27 +68,20 @@ async function extractSingle(doc: DocumentInput): Promise<ExtractedDocument> {
   const model = getModel();
   const filePart = fileToGenerativePart(doc.buffer, doc.mimeType);
 
-  const prompt = `
-You are an enterprise document intelligence agent.
-Analyze this document ("${doc.fileName}") and return structured JSON:
-{
-  "summary": "brief summary",
-  "document_type": "invoice | contract | report | form | other",
-  "key_fields": { "field_name": "value" },
-  "tables": [ { "title": "", "headers": [], "rows": [[]] } ],
-  "full_text": "complete extracted text"
-}
-Be precise. Do not hallucinate. Return only valid JSON, no markdown fences.
-  `.trim();
+  let result;
+  try {
+    result = await model.generateContent([prompt, filePart]);
+  } catch (err) {
+    throw new Error(`Gemini API error: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
-  const result = await model.generateContent([prompt, filePart]);
   const text = result.response.text().replace(/```json|```/g, "").trim();
 
   let parsed;
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new Error(`Failed to parse Gemini response for "${doc.fileName}"`);
+    throw new Error(`Invalid JSON from Gemini. Raw: ${text.slice(0, 200)}`);
   }
 
   return { fileName: doc.fileName, ...parsed };
