@@ -4,10 +4,8 @@ import {
   Part,
 } from "@google/generative-ai";
 
-// Max files allowed per batch
 export const MAX_BATCH_FILES = 10;
 
-// Supported MIME types
 export const SUPPORTED_MIME_TYPES = [
   "application/pdf",
   "image/jpeg",
@@ -41,7 +39,7 @@ export interface BatchExtractionResult {
   failed: Array<{ fileName: string; error: string }>;
 }
 
-// Lazy-init model — only called at runtime, never at build time
+// Lazy init — never called at build time
 function getModel(): GenerativeModel {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -57,7 +55,6 @@ function getModel(): GenerativeModel {
   });
 }
 
-// Helper: convert file buffer to Gemini-compatible Part
 export function fileToGenerativePart(buffer: Buffer, mimeType: string): Part {
   return {
     inlineData: {
@@ -67,7 +64,6 @@ export function fileToGenerativePart(buffer: Buffer, mimeType: string): Part {
   };
 }
 
-// Extract a single document — internal use
 async function extractSingle(doc: DocumentInput): Promise<ExtractedDocument> {
   const model = getModel();
   const filePart = fileToGenerativePart(doc.buffer, doc.mimeType);
@@ -87,12 +83,17 @@ Be precise. Do not hallucinate. Return only valid JSON, no markdown fences.
 
   const result = await model.generateContent([prompt, filePart]);
   const text = result.response.text().replace(/```json|```/g, "").trim();
-  const parsed = JSON.parse(text);
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error(`Failed to parse Gemini response for "${doc.fileName}"`);
+  }
 
   return { fileName: doc.fileName, ...parsed };
 }
 
-// Batch extract up to MAX_BATCH_FILES documents in parallel
 export async function extractBatch(
   docs: DocumentInput[]
 ): Promise<BatchExtractionResult> {
@@ -119,7 +120,6 @@ export async function extractBatch(
   return { success, failed };
 }
 
-// Answer a question across all extracted documents
 export async function chatWithDocuments(
   documents: ExtractedDocument[],
   question: string
