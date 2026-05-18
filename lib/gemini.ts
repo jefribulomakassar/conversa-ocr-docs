@@ -155,7 +155,7 @@ async function withRetry<T>(
 // ---------------------------------------------------------------------------
 async function renderPdfPages(pdfBuffer: Buffer): Promise<Buffer[]> {
   // Dynamic import keeps canvas out of the client/edge bundle
-  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.js");
   const { createCanvas } = await import("canvas");
 
   // pdfjs requires a Uint8Array
