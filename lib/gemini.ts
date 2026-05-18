@@ -47,7 +47,7 @@ function getModel(): GenerativeModel {
   }
   const genAI = new GoogleGenerativeAI(apiKey);
   return genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.0-flash",
     generationConfig: {
       temperature: 0.2,
       maxOutputTokens: 8192,
@@ -68,31 +68,27 @@ async function extractSingle(doc: DocumentInput): Promise<ExtractedDocument> {
   const model = getModel();
   const filePart = fileToGenerativePart(doc.buffer, doc.mimeType);
 
-  const prompt = `...`.trim();
+  const prompt = `
+You are an enterprise document intelligence agent.
+Analyze this document ("${doc.fileName}") and return structured JSON:
+{
+  "summary": "brief summary",
+  "document_type": "invoice | contract | report | form | other",
+  "key_fields": { "field_name": "value" },
+  "tables": [ { "title": "", "headers": [], "rows": [[]] } ],
+  "full_text": "complete extracted text"
+}
+Be precise. Do not hallucinate. Return only valid JSON, no markdown fences.
+  `.trim();
 
-  let result;
-  let lastErr: Error | null = null;
-
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      result = await model.generateContent([prompt, filePart]);
-      break; // sukses, keluar loop
-    } catch (err) {
-      lastErr = err instanceof Error ? err : new Error(String(err));
-      console.error(`[extractSingle] Attempt ${attempt} failed for "${doc.fileName}":`, lastErr.message);
-      if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 2000)); // 2s, 4s
-    }
-  }
-
-  if (!result) throw lastErr ?? new Error("All retry attempts failed.");
-
+  const result = await model.generateContent([prompt, filePart]);
   const text = result.response.text().replace(/```json|```/g, "").trim();
 
   let parsed;
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new Error(`Invalid JSON from Gemini. Raw: ${text.slice(0, 200)}`);
+    throw new Error(`Failed to parse Gemini response for "${doc.fileName}"`);
   }
 
   return { fileName: doc.fileName, ...parsed };
@@ -116,7 +112,7 @@ export async function extractBatch(
     } else {
       failed.push({
         fileName: docs[i].fileName,
-        error: result.reason?.message ?? String(result.reason) ?? "Unknown error",
+        error: result.reason?.message ?? "Unknown error",
       });
     }
   });
