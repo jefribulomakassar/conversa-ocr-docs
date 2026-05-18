@@ -22,10 +22,39 @@ function parseFile(file: File): Promise<string> {
       reject(new Error(`File too large. Max ${MAX_SIZE_MB}MB.`));
       return;
     }
+
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("Failed to read file."));
-    reader.readAsText(file);
+
+    // Excel file — parse dengan XLSX
+    if (
+      file.name.endsWith(".xlsx") ||
+      file.name.endsWith(".xls")
+    ) {
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: "array" });
+          const allSheets: string[] = [];
+
+          workbook.SheetNames.forEach((sheetName) => {
+            const sheet = workbook.Sheets[sheetName];
+            const csv = XLSX.utils.sheet_to_csv(sheet);
+            allSheets.push(`=== Sheet: ${sheetName} ===\n${csv}`);
+          });
+
+          resolve(allSheets.join("\n\n"));
+        } catch {
+          reject(new Error("Failed to parse Excel file."));
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read file."));
+      reader.readAsArrayBuffer(file); // ← beda dari CSV
+    } else {
+      // CSV / TXT — baca sebagai teks biasa
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Failed to read file."));
+      reader.readAsText(file);
+    }
   });
 }
 
