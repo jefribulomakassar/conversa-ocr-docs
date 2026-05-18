@@ -68,6 +68,19 @@ async function extractSingle(doc: DocumentInput): Promise<ExtractedDocument> {
   const model = getModel();
   const filePart = fileToGenerativePart(doc.buffer, doc.mimeType);
 
+  const prompt = `
+You are an enterprise document intelligence agent.
+Analyze this document ("${doc.fileName}") and return structured JSON:
+{
+  "summary": "brief summary",
+  "document_type": "invoice | contract | report | form | other",
+  "key_fields": { "field_name": "value" },
+  "tables": [ { "title": "", "headers": [], "rows": [[]] } ],
+  "full_text": "complete extracted text"
+}
+Be precise. Do not hallucinate. Return only valid JSON, no markdown fences.
+  `.trim();
+
   let result;
   try {
     result = await model.generateContent([prompt, filePart]);
