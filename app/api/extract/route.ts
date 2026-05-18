@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { extractBatch, MAX_BATCH_FILES, SUPPORTED_MIME_TYPES, DocumentInput } from "@/lib/gemini";
 
 export const runtime = "nodejs";
-export const maxDuration = 10;
+export const maxDuration = 60;
 
 interface FilePayload {
   fileName: string;
