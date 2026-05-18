@@ -1,125 +1,89 @@
 # Conversa AI — Enterprise Document Intelligence Agent
-
 > Submission for **TechEx Intelligent Enterprise Solutions Hackathon**
-> Track: 🤖 AI Agents with Google AI Studio (Powered by Google DeepMind & Google AI Studio)
+> Track 2: AI Agents with Google AI Studio + Track 4: Data & Intelligence
 
 ---
 
 ## 🧠 Overview
+Conversa AI adalah enterprise-grade AI Agent Platform dengan dua fitur utama:
+1. **OCR Docs** — upload dokumen (PDF/image), extract, dan chat
+2. **Data Intelligence** — upload CSV/Excel, analisis data dengan natural language
 
-**Conversa AI** is an enterprise-grade AI Agent Platform that enables users to upload, extract, and converse with documents using Gemini's long-context and vision capabilities. Designed to solve real-world enterprise document processing challenges — from contracts and reports to invoices and forms.
-
-🔗 **Live Demo:** [https://conversa2026.vercel.app](https://conversa2026.vercel.app)
-
----
-
-## 🚩 Problem
-
-Enterprises deal with massive volumes of unstructured documents daily. Extracting structured insights from PDFs, scanned files, or lengthy reports is slow, error-prone, and expensive when done manually.
-
----
-
-## ✅ Solution
-
-Conversa AI leverages **Gemini Flash** (via Google AI Studio) to:
-
-- 📄 **OCR & Extract** — Parse text, tables, and key data from uploaded documents (PDF, images, scanned files)
-- 💬 **Conversational Q&A** — Ask questions about document content in natural language
-- 🤖 **Agentic Workflow** — Automatic summarization, data structuring, and insight extraction
-- 🏢 **Enterprise Ready** — Built for use cases like contract review, report analysis, and operational data extraction
+🔗 **Live Demo:** [https://conversa-ocr-docs.vercel.app](https://conversa-ocr-docs.vercel.app)
 
 ---
 
 ## 🛠️ Tech Stack
-
 | Layer | Technology |
 |-------|------------|
-| Framework | Next.js (App Router) |
-| AI Model | Gemini Flash (Google AI Studio) |
+| Framework | Next.js 15.3.2 (App Router) |
+| AI Model | Gemini 2.5 Flash (Google AI Studio) |
 | Document Processing | Gemini Vision API (OCR + long-context) |
+| Excel Parsing | SheetJS (xlsx) |
 | Deployment | Vercel |
 
 ---
 
-## ✨ Key Features
-
-- **Document Upload** — Supports PDF and image formats
-- **AI-Powered OCR** — Gemini Vision extracts text from scanned/image-based documents
-- **Long-Context Processing** — Handles lengthy enterprise documents without chunking loss
-- **Chat Interface** — Converse with your documents naturally
-- **Structured Output** — Extract tables, key fields, and summaries automatically
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- Google AI Studio API Key → [Get yours here](https://aistudio.google.com)
-
-### Installation
-
-```bash
-git clone https://github.com/YOUR_USERNAME/conversa-ai.git
-cd conversa-ai
-npm install
-```
-
-### Environment Setup
-
-Create a `.env.local` file:
-
-```env
-GEMINI_API_KEY=your_google_ai_studio_api_key_here
-```
-
-### Run Locally
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000)
-
----
-
 ## 📁 Project Structure
-
 ```
 conversa-ai/
 ├── app/
 │   ├── api/
-│   │   └── extract/        # Gemini OCR & document processing endpoint
+│   │   ├── extract/route.ts       # OCR endpoint (maxDuration: 60s)
+│   │   ├── chat/route.ts          # Document Q&A endpoint (maxDuration: 30s)
+│   │   └── analyze/route.ts       # Data analysis endpoint (maxDuration: 60s)
 │   ├── components/
-│   │   ├── ChatInterface/  # Conversational UI
-│   │   └── DocumentUpload/ # File upload handler
-│   └── page.tsx
+│   │   ├── DocumentUpload/        # File upload handler (PDF/image)
+│   │   ├── ChatInterface/         # Document chat UI
+│   │   └── DataAnalyst/           # Excel/CSV upload + analyst chat UI
+│   ├── data-intelligence/
+│   │   └── page.tsx               # Route /data-intelligence
+│   └── page.tsx                   # Route / (OCR Docs)
 ├── lib/
-│   └── gemini.ts           # Google AI Studio client
-├── public/
-└── README.md
+│   ├── gemini.ts                  # Gemini OCR client (lazy init, retry 3x)
+│   └── analyst.ts                 # Gemini data analyst client (lazy init, retry 3x)
+├── next.config.ts                 # bodySizeLimit: 10mb
+└── package.json                   # next: ^15.3.2
 ```
 
 ---
 
-## 🎯 Hackathon Track Alignment
+## ✅ Perubahan yang Sudah Dilakukan
 
-This project addresses the **AI Agents with Google AI Studio** track:
+### Bug Fixes
+- Update Next.js `15.1.0` → `15.3.2` (fix Vercel vulnerable warning yang block deployment)
+- `maxDuration` extract: 10s → 60s (fix timeout saat OCR dokumen besar)
+- `maxDuration` chat: 10s → 30s (fix timeout saat context panjang)
+- Ganti model `gemini-2.0-flash` → `gemini-2.5-flash` (2.0 akan shutdown 1 Juni 2026, 1.5 sudah 404)
+- Tambah retry logic 3x (delay 2s, 4s) di `extractSingle` dan `analyzeData` untuk handle 503 Gemini
+- Tambah try/catch di `JSON.parse` Gemini response dengan error message yang jelas
+- Tambah `console.error` detail di `extractSingle` untuk debug log Vercel
 
-- ✅ **Long-context document processing** — contracts, reports, invoices
-- ✅ **Gemini-powered agent workflow** — extract → structure → converse
-- ✅ **Enterprise integration ready** — API-first design for CRM/ERP connectivity
-- ✅ **Production-grade demo** — live deployment on Vercel
+### Fitur Baru
+- Tambah **Data Intelligence** page (`/data-intelligence`)
+- Tambah `lib/analyst.ts` — Gemini data analyst dengan conversation history (multi-turn)
+- Tambah `app/api/analyze/route.ts` — endpoint analisis data
+- Tambah `app/components/DataAnalyst/index.tsx` — UI upload CSV/Excel + chat analyst
+- Excel parsing dengan SheetJS (`xlsx`) — baca semua sheet sekaligus, convert ke CSV sebelum kirim ke Gemini
+- Navigasi antar halaman (OCR Docs ↔ Data Intelligence)
+
+### Yang Masih Perlu Diperbaiki (TODO)
+- OCR masih sering error untuk PDF hasil scan — perlu fallback strategy
+- Gemini 503 masih bisa terjadi di peak hours meski sudah ada retry
 
 ---
 
-## 👥 Team
-
-Built for TechEx Intelligent Enterprise Solutions Hackathon 2026.
+## 🔑 Environment Variables
+```env
+GEMINI_API_KEY=your_google_ai_studio_api_key_here
+```
 
 ---
 
-## 📄 License
-
-MIT
+## 🚀 Getting Started
+```bash
+git clone https://github.com/jefribulomakassar/conversa-ocr-docs.git
+cd conversa-ocr-docs
+npm install
+npm run dev
+```
